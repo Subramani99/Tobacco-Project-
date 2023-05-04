@@ -1,0 +1,200 @@
+#import the library and packages
+import pandas as pd 
+import numpy as np
+from datetime import date
+from matplotlib import pyplot as plt
+from sklearn.metrics import mean_absolute_error
+from pandas.plotting import autocorrelation_plot
+from statsmodels.tsa.arima_model import ARIMA
+#load the dataset
+data = pd.read_csv('Tobacco_data.csv')
+data.head()
+country = 'India'
+data = data[data['location']==country]
+# convert year column to datetime format and sort by year
+data['year'] =pd.to_datetime(data['year'])
+# print min and max year values
+data.sort_values(['year'],ascending=True,inplace=True)
+data['year'].min(),data['year'].max()
+data.isnull().sum()
+#plot the Death count
+plt.plot(data['year'], data['Death%'], color='red', alpha=0.70, label='Death%')
+plt.xlabel('year')
+plt.ylabel('Count')
+plt.legend()
+
+# Show the plot
+plt.show()
+#plot the 5-10 years Moving avarage values
+rolling_mean5 = data['Death%'].rolling(window = 5).mean()
+rolling_mean10 = data['Death%'].rolling(window = 10).mean()
+rolling_mean15 = data['Death%'].rolling(window = 15).mean()
+rolling_mean20 = data['Death%'].rolling(window = 20).mean()
+plt.plot(data['year'],data['Death%'],color = 'blue', label = 'original')
+plt.plot(data['year'],rolling_mean5, color = 'red',label = 'Rolling 5 year mean')
+plt.plot(data['year'],rolling_mean10, color = 'black',label = 'Rolling 10 year mean')
+#1,1,0 ARIMA MODEL
+from statsmodels.tsa.arima.model import ARIMA
+
+#1,1,0 ARIMA MODEL
+model = ARIMA(data['Death%'], order=(1, 1, 0))
+model_fit = model.fit()
+print(model_fit.summary())
+plt.title('Moving Avarage')
+plt.show()
+data['moving_avg_5year'] = rolling_mean5
+data['moving_avg_10year'] = rolling_mean10
+data.head()
+#Autocorrelation 
+data['year'] = pd.to_datetime(data['year'], format='%Y')
+
+fig, ax = plt.subplots(figsize=(12, 4))
+autocorrelation_plot(data['Death%'], ax=ax)
+ax.set_title('Autocorrelation of Death%')
+ax.set_xlabel('Lag (years)')
+ax.set_ylabel('Autocorrelation')
+
+plt.show()
+#statistic Models
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
+import statsmodels.api as sm
+fig = plt.figure(figsize=(12,8))
+ax1 = fig.add_subplot(211)
+fig = sm.graphics.tsa.plot_acf(data['Death%'].dropna(),lags=50,ax=ax1)
+ax2 = fig.add_subplot(212)
+fig = sm.graphics.tsa.plot_acf(data['Death%'].dropna(),lags=50,ax=ax2)
+#1,1,0 ARIMA MODEL
+from statsmodels.tsa.arima.model import ARIMA
+
+#1,1,0 ARIMA MODEL
+model = ARIMA(data['Death%'], order=(1, 1, 0))
+model_fit = model.fit()
+print(model_fit.summary())
+#1,1,0 ARIMA MODEL
+model = ARIMA(data['Death%'], order=(5, 1, 0))
+model_fit = model.fit()
+print(model_fit.summary())
+#split the train,test in dataset
+X = data['Death%'].values
+size = int(len(X) * 0.90)
+train, test = X[0:size], X[size:len(X)]
+traindf, testdf = data[0:size], data[size:len(X)]
+history = [x for x in train]
+predictions = list()
+# walk-forward validation
+#fit the  forcast model
+for t in range(len(test)):
+    model = ARIMA(history, order=(1,1,0))
+model_fit = model.fit()
+output = model_fit.forecast()
+yhat = output[0]
+predictions.append(yhat)
+obs = test[t]
+history.append(obs)
+#mean_absolute_error in the train,test
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error
+
+# generate some example data
+data = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+
+# split into train and test sets
+train = data[:7]
+test = data[7:]
+
+# make predictions with a forecasting model
+predictions = np.array([70, 80, 90, 100, 110, 120, 130])
+
+# print('predicted=%f, expected=%f' % (yhat, obs))
+# evaluate forcasts
+mae = mean_absolute_error(test, predictions[:len(test)])
+test_extended = np.append(test, np.zeros(len(predictions) - len(test)))
+mae = mean_absolute_error(test_extended, predictions)
+print("MAE:", mae)  
+
+# plot forecasts against actual outcomes
+plt.plot(test)
+plt.plot(predictions, color='red')
+plt.show()
+#forcasting a 5-10 years Death%
+mae5year = mean_absolute_error(testdf['Death%'],testdf['moving_avg_5year'])
+mae10year = mean_absolute_error(testdf['Death%'],testdf['moving_avg_10year'])
+print(f'mean absolute error from 5year moving avarage prediction: {mae5year}')
+print(f'mean absolute error from 10year moving avarage prediction: {mae10year}')
+
+# create a forecast for the next 10 time periods
+forecast = model_fit.forecast(steps=10)
+
+# print the forecasted values
+print(forecast)
+
+plt.plot(forecast, label='ARIMA forecast')
+
+# add labels and legend to the plot
+plt.xlabel('Time period')
+plt.ylabel('Forecasted values')
+plt.legend()
+plt.show()
+
+import plotly.graph_objs as go
+# create a trace for the forecasted values
+forecast_trace = go.Scatter(
+    x=np.arange(len(data), len(data) + len(forecast)),
+    y=forecast,
+    mode='lines',
+    name='ARIMA forecast'
+)
+
+# create a trace for the original data
+data_trace = go.Scatter(
+    x=np.arange(len(data)),
+    y=data,
+    mode='lines',
+    name='Original data'
+)
+
+# create the plot layout
+layout = go.Layout(
+    title='ARIMA forecast',
+    xaxis=dict(title='Time period'),
+    yaxis=dict(title='Forecasted values')
+)
+
+# create the plot figure
+fig = go.Figure(data=[data_trace, forecast_trace], layout=layout)
+fig.show()
+
+import pickle
+
+# Save the model to a file
+with open('arima_model.pkl2', 'wb') as f:
+    pickle.dump(model, f)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
